@@ -5,6 +5,9 @@
  */
 
 import {
+  TextToModelPipelineRequest,
+  TextToModelPipelineResult,
+  TextToModelPipelineStatus,
   TextToModelRequest,
   TextToModelResult,
   TextToModelStatus,
@@ -22,5 +25,12 @@ export class RefineryChat extends GenericRefinery {
     TextToModelRequest,
     TextToModelResult,
     TextToModelStatus,
+  );
+
+  readonly textToModelPipeline = this.streaming(
+    'textToModelPipeline',
+    TextToModelPipelineRequest,
+    TextToModelPipelineResult,
+    TextToModelPipelineStatus,
   );
 }

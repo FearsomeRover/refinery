@@ -43,6 +43,9 @@ const ChatMessages = observer(function ChatMessages({
         gap: 2,
         overflow: 'auto',
         width: '100%',
+        '.message-text': {
+          whiteSpace: 'pre-wrap',
+        },
         '.message-text--user': {
           alignSelf: 'flex-end',
           textAlign: 'right',
