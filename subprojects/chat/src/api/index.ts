@@ -9,6 +9,7 @@ import express from 'express';
 import { setupAPIClients, sseHandler } from '../middlewares';
 
 import textToModel from './textToModel';
+import textToModelPipeline from './textToModelPipeline';
 
 const router = express.Router();
 
@@ -17,5 +18,6 @@ router.use(setupAPIClients);
 router.use(sseHandler);
 
 router.post('/textToModel', textToModel);
+router.post('/textToModelPipeline', textToModelPipeline);
 
 export default router;

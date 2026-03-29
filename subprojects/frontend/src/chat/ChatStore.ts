@@ -77,10 +77,11 @@ export default class ChatStore {
       if (this.editorStore === undefined || this.client === undefined) {
         return;
       }
-      const result = await this.client.textToModel(
+      const result = await this.client.textToModelPipeline(
         {
           metamodel: { source: this.editorStore.state.sliceDoc() },
           text: this.message,
+          candidateCount: 3,
           format: {
             source: { enabled: true },
             json: {
@@ -91,24 +92,77 @@ export default class ChatStore {
           },
         },
         {
-          onStatus: (status) => this.pushLog(status),
+          onStatus: (status) =>
+            this.pushLog({
+              role: status.role,
+              content: `[${status.stage}] ${status.content}`,
+            }),
           signal,
         },
       );
       this.pushLog({
         role: 'refinery',
-        content: 'Successfully generated model',
+        content: 'Successfully generated model pipeline result',
       });
-      const uuid = nanoid();
-      this.editorStore.addGeneratedModel(uuid, 0);
-      if (result.json !== undefined) {
-        this.editorStore.setGeneratedModelSemantics(
-          uuid,
-          result.json,
-          result.source,
-        );
-      } else {
-        this.editorStore.setGeneratedModelError(uuid, 'No JSON in AI response');
+      this.pushLog({
+        role: 'assistant',
+        content:
+          `Extracted domain summary: ${result.extractedDomain.summary}` +
+          (result.extractedDomain.entities.length > 0
+            ? `\nEntities: ${result.extractedDomain.entities.join(', ')}`
+            : '') +
+          (result.extractedDomain.relations.length > 0
+            ? `\nRelations: ${result.extractedDomain.relations.join(' | ')}`
+            : '') +
+          (result.extractedDomain.ambiguities.length > 0
+            ? `\nAmbiguities: ${result.extractedDomain.ambiguities.join(' | ')}`
+            : ''),
+      });
+      if (result.findings.length > 0) {
+        this.pushLog({
+          role: 'assistant',
+          content: `Confirmed review findings:\n- ${result.findings.join('\n- ')}`,
+        });
+      }
+      if (result.assumptions.length > 0) {
+        this.pushLog({
+          role: 'assistant',
+          content: `Assumptions and notes:\n- ${result.assumptions.join('\n- ')}`,
+        });
+      }
+
+      const fallbackCandidate = {
+        randomSeed: 0,
+        json: result.json,
+        source: result.source,
+      };
+      const candidates =
+        result.candidates.length > 0 ? result.candidates : [fallbackCandidate];
+      const primarySource = candidates[0]?.source ?? result.source;
+      if (primarySource !== undefined) {
+        this.editorStore.dispatch({
+          changes: {
+            from: 0,
+            to: this.editorStore.state.doc.length,
+            insert: primarySource,
+          },
+        });
+      }
+      for (const candidate of candidates) {
+        const uuid = nanoid();
+        this.editorStore.addGeneratedModel(uuid, candidate.randomSeed);
+        if (candidate.json !== undefined) {
+          this.editorStore.setGeneratedModelSemantics(
+            uuid,
+            candidate.json,
+            candidate.source,
+          );
+        } else {
+          this.editorStore.setGeneratedModelError(
+            uuid,
+            'No JSON in generated candidate',
+          );
+        }
       }
     })()
       .catch((error) => {
