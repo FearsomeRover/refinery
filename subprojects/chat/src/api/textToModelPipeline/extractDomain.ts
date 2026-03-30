@@ -7,8 +7,9 @@
 import type { OpenAI } from 'openai';
 import { z } from 'zod/v3';
 
-import extractDomainPrompt from './extractDomain.md';
 import { runStructuredStageLLM } from '../textToModel/common';
+
+import extractDomainPrompt from './extractDomain.md';
 
 export const ExtractedDomain = z.object({
   summary: z.string(),

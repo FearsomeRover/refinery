@@ -26,6 +26,8 @@ export type TextToModelPipelineRequest = z.infer<
 
 export const PipelineCandidate = z.object({
   randomSeed: z.number(),
+  branchIndex: z.number().optional(),
+  branchExplanation: z.string().optional(),
   source: z.string().optional(),
   json: JsonOutput.optional(),
   critique: z.string().array().default([]),

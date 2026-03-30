@@ -27,3 +27,5 @@ node_modules/
 xtend-gen/
 *.xtendbin
 xtext-gen/
+eval-datasets/
+eval-results/

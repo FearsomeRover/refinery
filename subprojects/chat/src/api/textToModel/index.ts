@@ -16,13 +16,13 @@ import {
 import type { RequestHandler } from 'express';
 import type { OpenAI } from 'openai';
 
-import system from './system.md';
 import {
   concretizationResultToChatMessage,
   invalidProblemToChatMessage,
   runStageLLM,
   validateAssertionsWithRefinery,
 } from './common';
+import system from './system.md';
 
 const textToModel: RequestHandler = async (req, res) => {
   const { metamodel, text, format } = TextToModelRequest.parse(req.body);

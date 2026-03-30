@@ -46,7 +46,39 @@ export async function runStructuredStageLLM<T extends z.ZodTypeAny>(
     throw new Error('AI returned no response');
   }
   messages.push(assistantMessage);
-  return schema.parse(assistantMessage.parsed);
+  const parsedResponse: unknown = assistantMessage.parsed;
+  const parsedResult: z.infer<T> = schema.parse(parsedResponse) as z.infer<T>;
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- Zod validates the runtime shape against the provided schema.
+  return parsedResult;
+}
+
+export interface IssueDiagnostic {
+  line: number;
+  adjustedLine?: number;
+  severity: Issue['severity'];
+  description: string;
+}
+
+export function collectIssueDiagnostics(
+  xtextIssues: Issue[],
+  prefixLines: number,
+  filter: (issue: Issue) => boolean,
+): IssueDiagnostic[] {
+  const diagnostics: IssueDiagnostic[] = [];
+  for (const issue of xtextIssues) {
+    if (!filter(issue)) {
+      continue;
+    }
+    diagnostics.push({
+      line: issue.line,
+      ...(issue.line < prefixLines
+        ? {}
+        : { adjustedLine: issue.line - prefixLines + 1 }),
+      severity: issue.severity,
+      description: issue.description,
+    });
+  }
+  return diagnostics;
 }
 
 export function convertIssues(
@@ -54,29 +86,26 @@ export function convertIssues(
   prefixLines: number,
   filter: (issue: Issue) => boolean,
 ): string[] {
-  const issues: string[] = [];
-  for (const issue of xtextIssues) {
-    if (!filter(issue)) {
-      continue;
-    }
-    if (issue.line < prefixLines) {
-      issues.push(`* ${issue.description}`);
-    } else {
-      issues.push(
-        `* Line ${issue.line - prefixLines + 1}: ${issue.description}`,
-      );
-    }
-  }
-  return issues;
+  return collectIssueDiagnostics(xtextIssues, prefixLines, filter).map(
+    ({ adjustedLine, description }) =>
+      adjustedLine === undefined
+        ? `* ${description}`
+        : `* Line ${adjustedLine}: ${description}`,
+  );
 }
 
 export function invalidProblemToChatMessage(
   err: RefineryError.InvalidProblem,
   prefixLines: number,
 ): string {
-  return `Refinery has returned the following syntax errors:
+  const errors = convertIssues(
+    err.issues,
+    prefixLines,
+    ({ severity }) => severity === 'error',
+  );
+  return `Refinery has returned the following compiler errors:
 
-${convertIssues(err.issues, prefixLines, ({ severity }) => severity === 'error').join('\n')}
+${errors.join('\n')}
 
 Please check your assertions and fix the errors.`;
 }
